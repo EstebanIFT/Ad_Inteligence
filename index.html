@@ -984,17 +984,6 @@
         </p>
 
         <div class="field">
-          <label>Image Uploads (optional)</label>
-          <div class="upload-area" id="uploadArea">
-            <input type="file" id="adImages" accept="image/*" multiple />
-            <div class="upload-icon">🖼</div>
-            <div class="upload-text"><strong>Click to upload</strong> or drag &amp; drop</div>
-            <div class="upload-hint">PNG, JPG, GIF, WEBP — multiple files accepted</div>
-          </div>
-          <div class="file-list" id="fileList"></div>
-        </div>
-
-        <div class="field">
           <label>Ad Copy Entries</label>
           <div class="ad-entries" id="adEntries"></div>
           <button type="button" class="btn-add-ad" id="btnAddAd">＋ Add another ad</button>
@@ -1223,42 +1212,63 @@
           <label style="font-size:12px;">Additional Notes (optional)</label>
           <input type="text" name="adNotes_${idx}" placeholder="Format, placement, variant notes…" />
         </div>
+        <div class="field">
+          <label style="font-size:12px;">Ad Images (optional)</label>
+          <div class="upload-area" id="uploadArea_${idx}" style="padding:12px;">
+            <input type="file" id="adImages_${idx}" accept="image/*" multiple onchange="handleAdFileInput(event,${idx})" />
+            <div class="upload-icon" style="font-size:20px;">🖼</div>
+            <div class="upload-text" style="font-size:12px;"><strong>Click to upload</strong> or drag &amp; drop</div>
+            <div class="upload-hint" style="font-size:11px;">PNG, JPG, GIF, WEBP</div>
+          </div>
+          <div class="file-list" id="fileList_${idx}"></div>
+        </div>
       </div>`;
     document.getElementById('adEntries').appendChild(entry);
+    const area = document.getElementById(`uploadArea_${idx}`);
+    area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+    area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+    area.addEventListener('drop', e => {
+      e.preventDefault(); area.classList.remove('dragover');
+      Array.from(e.dataTransfer.files).forEach(f => addAdFile(idx, f));
+    });
   }
 
-  function removeAdEntry(btn) { btn.closest('.ad-entry').remove(); }
+  function removeAdEntry(btn) {
+    const entry = btn.closest('.ad-entry');
+    delete adFiles[entry.dataset.idx];
+    entry.remove();
+  }
 
   document.getElementById('btnAddAd').addEventListener('click', addAdEntry);
   addAdEntry(); // start with one
 
-  /* ─── File upload ─── */
-  const uploadArea = document.getElementById('uploadArea');
-  const fileListEl = document.getElementById('fileList');
-  let uploadedFiles = [];
+  /* ─── Per-ad file upload ─── */
+  const adFiles = {};
 
-  document.getElementById('adImages').addEventListener('change', function() {
-    Array.from(this.files).forEach(addFile);
-    this.value = '';
-  });
-  uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-  uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-  uploadArea.addEventListener('drop', e => {
-    e.preventDefault(); uploadArea.classList.remove('dragover');
-    Array.from(e.dataTransfer.files).forEach(addFile);
-  });
-
-  function addFile(f) { uploadedFiles.push(f); renderFileList(); }
-  function removeFile(i) { uploadedFiles.splice(i,1); renderFileList(); }
-  function renderFileList() {
-    fileListEl.innerHTML = '';
-    uploadedFiles.forEach((f,i) => {
+  function handleAdFileInput(e, idx) {
+    Array.from(e.target.files).forEach(f => addAdFile(idx, f));
+    e.target.value = '';
+  }
+  function addAdFile(idx, f) {
+    if (!adFiles[idx]) adFiles[idx] = [];
+    adFiles[idx].push(f);
+    renderAdFileList(idx);
+  }
+  function removeAdFile(idx, i) {
+    adFiles[idx].splice(i, 1);
+    renderAdFileList(idx);
+  }
+  function renderAdFileList(idx) {
+    const listEl = document.getElementById(`fileList_${idx}`);
+    if (!listEl) return;
+    listEl.innerHTML = '';
+    (adFiles[idx] || []).forEach((f, i) => {
       const item = document.createElement('div');
       item.className = 'file-item';
       item.innerHTML = `<span class="fi-icon">🖼</span><span class="fi-name">${f.name}</span>
         <span style="font-size:11px;color:var(--text-muted)">${(f.size/1024).toFixed(1)}KB</span>
-        <button type="button" class="file-remove" onclick="removeFile(${i})">×</button>`;
-      fileListEl.appendChild(item);
+        <button type="button" class="file-remove" onclick="removeAdFile(${idx},${i})">×</button>`;
+      listEl.appendChild(item);
     });
   }
 
@@ -1284,26 +1294,28 @@
       if(vals.length) data[k] = vals;
     });
 
-    data.ads = [];
-    document.querySelectorAll('.ad-entry').forEach(entry => {
-      const idx = entry.dataset.idx;
-      const obj = {
-        headline: fd.get(`adHeadline_${idx}`) || '',
-        copy:     fd.get(`adCopy_${idx}`)     || '',
-        cta:      fd.get(`adCTA_${idx}`)      || '',
-        notes:    fd.get(`adNotes_${idx}`)    || '',
-      };
-      if (obj.headline || obj.copy) data.ads.push(obj);
+    const readFile = f => new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload  = () => res({ name: f.name, type: f.type, data: r.result });
+      r.onerror = rej;
+      r.readAsDataURL(f);
     });
 
-    if (uploadedFiles.length) {
-      data.images = await Promise.all(uploadedFiles.map(f => new Promise((res,rej) => {
-        const r = new FileReader();
-        r.onload  = () => res({ name: f.name, type: f.type, data: r.result });
-        r.onerror = rej;
-        r.readAsDataURL(f);
-      })));
-    }
+    data.ads = await Promise.all(
+      Array.from(document.querySelectorAll('.ad-entry')).map(async entry => {
+        const idx = entry.dataset.idx;
+        const obj = {
+          headline: fd.get(`adHeadline_${idx}`) || '',
+          copy:     fd.get(`adCopy_${idx}`)     || '',
+          cta:      fd.get(`adCTA_${idx}`)      || '',
+          notes:    fd.get(`adNotes_${idx}`)    || '',
+        };
+        const files = adFiles[idx] || [];
+        if (files.length) obj.images = await Promise.all(files.map(readFile));
+        return obj;
+      })
+    );
+    data.ads = data.ads.filter(a => a.headline || a.copy || (a.images && a.images.length));
     return data;
   }
 
@@ -1376,8 +1388,7 @@
     document.querySelectorAll('.radio-item, .check-item').forEach(el => el.classList.remove('selected'));
     document.querySelectorAll('.other-specify').forEach(el => el.classList.remove('visible'));
     completedSteps.clear();
-    uploadedFiles = [];
-    renderFileList();
+    Object.keys(adFiles).forEach(k => delete adFiles[k]);
     showStep(1);
   }
 
