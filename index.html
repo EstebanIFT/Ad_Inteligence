@@ -984,6 +984,22 @@
         </p>
 
         <div class="field">
+          <label>Output Audience <span style="color:var(--required)">*</span></label>
+          <div class="radio-group inline" id="outputAudienceGroup">
+            <label class="radio-item" onclick="selectRadio(this,'outputAudience','internal')">
+              <input type="radio" name="outputAudience" value="internal" hidden />
+              <span>🏢 Internal</span>
+              <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">team / compliance review</span>
+            </label>
+            <label class="radio-item" onclick="selectRadio(this,'outputAudience','external')">
+              <input type="radio" name="outputAudience" value="external" hidden />
+              <span>🌐 External</span>
+              <span style="font-size:11px;color:var(--text-muted);margin-left:4px;">investor-facing / public</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
           <label>Ad Copy Entries</label>
           <div class="ad-entries" id="adEntries"></div>
           <button type="button" class="btn-add-ad" id="btnAddAd">＋ Add another ad</button>
@@ -1286,7 +1302,7 @@
     ].forEach(k => { const v = fd.get(k); if(v) data[k] = v; });
 
     ['offeringType','distFreq','investorQual','capitalStack','liquidity',
-     'riskProfile','trafficType','campaignObj'
+     'riskProfile','trafficType','campaignObj','outputAudience'
     ].forEach(k => { const v = fd.get(k); if(v) data[k] = v; });
 
     ['returnStructure','platform','motivation'].forEach(k => {
