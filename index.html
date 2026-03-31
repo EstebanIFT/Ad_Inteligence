@@ -1016,10 +1016,6 @@
       </button>
     </div>
 
-    <div id="result-panel">
-      <h3>✅ Analysis Report</h3>
-      <div id="resultContent"></div>
-    </div>
   </div>
 
 </form>
@@ -1340,8 +1336,10 @@
     e.preventDefault();
 
     const btn = document.getElementById('btnSubmit');
+    const btnText = btn.querySelector('.btn-text');
     btn.disabled = true;
     btn.classList.add('loading');
+    btnText.textContent = '⏳ Analyzing… please wait';
 
     try {
       const payload = await collectData();
@@ -1351,29 +1349,34 @@
         { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }
       );
 
-      let resultText = '';
-      const ct = response.headers.get('content-type') || '';
-      if (ct.includes('application/json')) {
-        const json = await response.json();
-        resultText = typeof json === 'object' ? JSON.stringify(json, null, 2) : String(json);
-      } else {
-        resultText = await response.text();
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`Server responded with ${response.status}: ${errText}`);
       }
 
-      if (!response.ok) throw new Error(`Server responded with ${response.status}: ${resultText}`);
+      // Determine filename from Content-Disposition or fallback
+      const disposition = response.headers.get('content-disposition') || '';
+      let filename = 'report.zip';
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?["']?([^"';\n]+)["']?/i);
+      if (match) filename = decodeURIComponent(match[1].trim());
+
+      // Download the response as a file
+      const blob = await response.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
 
       // Mark step 5 done & update progress to 100%
       completedSteps.add(5);
       document.getElementById('progressBar').style.width = '100%';
       document.getElementById('progressPct').textContent = '100%';
 
-      // Show result inline
-      const panel = document.getElementById('result-panel');
-      document.getElementById('resultContent').textContent = resultText || 'Analysis submitted. Your report is being processed.';
-      panel.style.display = 'block';
-      panel.scrollIntoView({ behavior:'smooth', block:'start' });
-
-      showToast('✅ Analysis submitted successfully!', 'success');
+      showToast(`✅ Report downloaded: ${filename}`, 'success');
 
     } catch(err) {
       console.error(err);
@@ -1381,6 +1384,7 @@
     } finally {
       btn.disabled = false;
       btn.classList.remove('loading');
+      btnText.textContent = '🚀 Run Ad Intelligence Analysis';
     }
   });
 
