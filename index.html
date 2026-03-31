@@ -1335,6 +1335,22 @@
   document.getElementById('axisForm').addEventListener('submit', async function(e) {
     e.preventDefault();
 
+    // Validate step 5 before submitting
+    const filledAds = Array.from(document.querySelectorAll('.ad-entry')).filter(entry => {
+      const idx = entry.dataset.idx;
+      const headline = entry.querySelector(`[name="adHeadline_${idx}"]`)?.value.trim();
+      const copy     = entry.querySelector(`[name="adCopy_${idx}"]`)?.value.trim();
+      return headline || copy || (adFiles[idx] && adFiles[idx].length);
+    });
+    if (!filledAds.length) {
+      showToast('Please add at least one ad (headline, copy, or image).', 'error');
+      return;
+    }
+    if (!document.querySelector('input[name="outputAudience"]:checked')) {
+      showToast('Please select an output audience (Internal or External).', 'error');
+      return;
+    }
+
     const btn = document.getElementById('btnSubmit');
     const btnText = btn.querySelector('.btn-text');
     btn.disabled = true;
