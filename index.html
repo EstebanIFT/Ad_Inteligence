@@ -634,11 +634,11 @@
         <div class="field" id="field-minInvestment">
           <label for="minInvestment">
             <span class="field-num">06</span>
-            Minimum Investment <span class="req">*</span>
+            Minimum Investment
           </label>
           <input type="text" id="minInvestment" name="minInvestment" placeholder="e.g. $25,000" />
-          <span class="field-error">Minimum investment is required.</span>
         </div>
+
 
         <div class="field">
           <label><span class="field-num">07</span> Investor Qualification Requirement</label>
@@ -1117,8 +1117,6 @@
       valid = requireText('issuerName', 'Issuer name is required.') && valid;
       // Required: offeringType radio
       valid = requireRadio('offeringType', 'field-offeringType', 'Please select an offering type.') && valid;
-      // Required: minInvestment
-      valid = requireText('minInvestment', 'Minimum investment is required.') && valid;
     }
 
     if (!valid) {
